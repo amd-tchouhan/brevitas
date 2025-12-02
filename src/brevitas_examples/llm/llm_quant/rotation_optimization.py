@@ -32,6 +32,7 @@ class TrainingArguments(transformers.TrainingArguments):
 def parse_rotation_optimization_args(extra_args: Optional[List[str]] = None) -> TrainingArguments:
     parser = transformers.HfArgumentParser(TrainingArguments)
     training_args = parser.parse_args_into_dataclasses(args=extra_args)
+    print(f"Parsed rotation optimization arguments: {training_args[0]}")
     # If a single-process is running, only one GPU should be available
     # for Trainer, to prevent using DataParallel, which was causing an
     # error due to tensors in different devices being operated.
@@ -93,6 +94,14 @@ def apply_rotation_optimization(
     training_args: TrainingArguments,
 ) -> None:
 
+    print("Starting rotation optimization...")
+    from transformers import TrainerCallback, TrainerState, TrainerControl
+    class CustomLoggingCallback(TrainerCallback):
+        def on_step_end(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+            # state.global_step contains the current iteration number
+            # if state.global_step % args.logging_steps == 0:
+            print(f"\n**Global Step: {state.global_step}, model_train_status: {model.training}**")
+
     # Prepare dataset and model for training
     train_dataset = _prepare_train_dataset(train_dataset)
     model = _prepare_model(model)
@@ -118,6 +127,9 @@ def apply_rotation_optimization(
         eval_dataset=None,
         data_collator=collate_fn,
         optimizers=(optimizer, None))
+
+    print(model)
+    trainer.add_callback(CustomLoggingCallback())
     trainer.train()
     # After finishing training, set eval mode again
     model.eval()
